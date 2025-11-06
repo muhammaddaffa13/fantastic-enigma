@@ -1,0 +1,950 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🎯 Tic Tac Toe - Lawan Komputer</title>
+<style>
+  /* ======================
+     Variables & base
+     ====================== */
+  :root{
+    --bg-1: #0b1020;
+    --bg-2: #0f1730;
+    --neon-blue: #00d1ff;
+    --neon-purple: #9b4dff;
+    --glass: rgba(255,255,255,0.04);
+    --accent: linear-gradient(135deg,var(--neon-blue),var(--neon-purple));
+    --card-radius: 16px;
+    --glow: 0 0 18px rgba(155,77,255,0.28), 0 0 40px rgba(0,209,255,0.08);
+    --safe-touch: 48px; /* minimum tappable size */
+  }
+
+  /* full-screen gradient background */
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: radial-gradient(1200px 600px at 10% 10%, rgba(155,77,255,0.06), transparent 5%),
+                radial-gradient(1000px 500px at 90% 90%, rgba(0,209,255,0.04), transparent 5%),
+                linear-gradient(180deg,var(--bg-1),var(--bg-2));
+    color:#e6f2ff;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow:hidden;
+  }
+
+  /* container layout */
+  .wrap{
+    min-height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:4vh 4vw;
+    box-sizing:border-box;
+  }
+
+  /* card */
+  .card{
+    width:min(920px, 98vw);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:var(--card-radius);
+    padding:clamp(16px, 2.5vw, 28px);
+    box-shadow: var(--glow), 0 8px 30px rgba(2,6,23,0.6);
+    border: 1px solid rgba(255,255,255,0.04);
+    display:grid;
+    grid-template-columns: 1fr 320px;
+    gap: clamp(12px, 2vw, 24px);
+    align-items:start;
+  }
+
+  /* make single-column on small screens */
+  @media (max-width:900px){
+    .card{ grid-template-columns: 1fr; }
+  }
+
+  /* header */
+  .header{
+    grid-column: 1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .title{
+    font-size:clamp(18px, 2.2vw, 26px);
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.6);
+  }
+  .title .logo{
+    padding:8px 12px;
+    border-radius:12px;
+    background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    display:inline-flex;
+    gap:8px;
+    align-items:center;
+    color:var(--neon-blue);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+
+  /* simple neon button */
+  .btn{
+    padding:8px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    user-select:none;
+    border: none;
+    font-weight:600;
+    background:transparent;
+    color:inherit;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    transition:transform .12s ease, box-shadow .12s ease;
+    min-height: var(--safe-touch);
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn.glow{
+    background:var(--accent);
+    background-clip:padding-box;
+    -webkit-background-clip:padding-box;
+    color:#021022;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.6), 0 0 30px rgba(155,77,255,0.18), 0 0 14px rgba(0,209,255,0.08);
+  }
+
+  /* layout split */
+  .left{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    align-items:center;
+    justify-content:center;
+  }
+  .right{
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    justify-content:flex-start;
+  }
+
+  /* game board container */
+  .board-wrap{
+    width:100%;
+    max-width:640px;
+    aspect-ratio:1/1;
+    display:grid;
+    place-items:center;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02));
+    border-radius:14px;
+    padding:clamp(12px,2vw,18px);
+    box-sizing:border-box;
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  /* grid itself is responsive to container */
+  .board{
+    width:100%;
+    height:100%;
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: clamp(6px, 1.2vw, 12px);
+    touch-action: manipulation;
+  }
+
+  /* each cell */
+  .cell{
+    background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.006));
+    border-radius:10px;
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: clamp(36px, 6.2vw, 64px);
+    font-weight:800;
+    color:transparent; /* text shown via pseudo */
+    cursor:pointer;
+    user-select:none;
+    transition: transform .12s cubic-bezier(.2,.9,.3,1), box-shadow .12s ease;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+    min-width: calc(var(--safe-touch));
+    min-height: calc(var(--safe-touch));
+  }
+  .cell:active{ transform:scale(.98); }
+
+  /* X and O visuals */
+  .cell .mark{
+    position:absolute;
+    width:80%;
+    height:80%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: opacity .22s ease, transform .28s cubic-bezier(.2,.9,.3,1);
+    opacity:0;
+    transform: scale(.8) rotate(-4deg);
+    pointer-events:none;
+    text-shadow: 0 2px 30px rgba(0,0,0,0.6);
+  }
+  .cell.x .mark{ color:var(--neon-blue); }
+  .cell.o .mark{ color:var(--neon-purple); }
+
+  /* show when active (after placing) */
+  .cell.occupied .mark{ opacity:1; transform: scale(1) rotate(0deg); }
+
+  /* hover glow hint */
+  .cell:not(.occupied):hover{
+    box-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 0 26px rgba(155,77,255,0.04);
+    transform: translateY(-3px);
+  }
+
+  /* info panel on right */
+  .panel{
+    padding:14px;
+    border-radius:12px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.015));
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .status{
+    font-size:clamp(14px,1.8vw,18px);
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .scoreboard{
+    display:flex;
+    gap:10px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .score{
+    padding:10px;
+    border-radius:10px;
+    background:rgba(255,255,255,0.02);
+    min-width:120px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+
+  .small{
+    font-size:12px;
+    opacity:0.8;
+  }
+
+  /* result overlay (win / draw) */
+  .overlay{
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    pointer-events:none;
+  }
+  .result{
+    padding:18px 22px;
+    border-radius:14px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.04);
+    backdrop-filter: blur(6px);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+    text-align:center;
+    opacity:0;
+    transform: translateY(-8px) scale(.98);
+    transition: opacity .28s ease, transform .28s cubic-bezier(.2,.9,.3,1);
+  }
+  .result.show{
+    pointer-events:auto;
+    opacity:1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 38px rgba(155,77,255,0.12);
+  }
+  .result .big{
+    font-size: clamp(20px, 3.2vw, 28px);
+    font-weight:800;
+  }
+  .confetti{
+    width:100%;
+    height:100%;
+    position:absolute;
+    pointer-events:none;
+    inset:0;
+    overflow:hidden;
+  }
+
+  /* winning line highlight */
+  .win-line{
+    position:absolute;
+    height:6px;
+    background: var(--neon-blue);
+    left:0;
+    top:0;
+    transform-origin:center;
+    box-shadow: 0 0 18px rgba(0,209,255,0.6), 0 0 40px rgba(155,77,255,0.08);
+    border-radius:8px;
+    transition: opacity .2s ease;
+  }
+
+  /* small footer / credits */
+  .meta{
+    font-size:12px;
+    opacity:0.7;
+    margin-top:6px;
+  }
+
+  /* animated pulse when draw */
+  .draw-flash{
+    animation: flash 1.2s ease infinite;
+  }
+  @keyframes flash{
+    0%{ box-shadow: 0 6px 18px rgba(0,0,0,0.45); transform:scale(1); }
+    50%{ box-shadow: 0 20px 50px rgba(155,77,255,0.12); transform:scale(1.02); }
+    100%{ box-shadow: 0 6px 18px rgba(0,0,0,0.45); transform:scale(1); }
+  }
+
+  /* accessibility focus outlines */
+  .btn:focus, .cell:focus {
+    outline: 3px solid rgba(0,209,255,0.12);
+    outline-offset:3px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" role="application" aria-label="Tic Tac Toe Game">
+    <div class="header">
+      <div class="title">
+        <div class="logo">🎯 <strong>Tic Tac Toe</strong></div>
+        <div style="opacity:0.92"> - Lawan Komputer</div>
+      </div>
+
+      <div class="controls" aria-hidden="false">
+        <button id="audioToggle" class="btn" title="Toggle Backsound and Effects" aria-pressed="true">🔊</button>
+        <button id="restartBtn" class="btn glow" title="Main Lagi">Main Lagi</button>
+      </div>
+    </div>
+
+    <!-- LEFT: board -->
+    <div class="left">
+      <div class="board-wrap" id="boardWrap">
+        <div class="board" id="board" aria-label="Papan Tic Tac Toe" role="grid">
+          <!-- 9 cells inserted by JS -->
+        </div>
+
+        <!-- overlay for result (centered) -->
+        <div class="overlay" id="overlay" aria-hidden="true">
+          <div class="result" id="resultBox" role="status" aria-live="polite">
+            <div class="big" id="resultText">Kamu Menang!</div>
+            <div id="subText" class="small">(animasi kemenangan)</div>
+            <button class="btn glow" id="overlayPlayAgain">Main Lagi</button>
+          </div>
+        </div>
+
+        <!-- winning line dynamic element -->
+        <div id="winLine" class="win-line" style="opacity:0"></div>
+        <!-- confetti canvas -->
+        <canvas id="confettiCanvas" class="confetti"></canvas>
+      </div>
+      <div class="meta small">Sentuhan neon • Responsive • AI sederhana (minimax)</div>
+    </div>
+
+    <!-- RIGHT: controls & scoreboard -->
+    <div class="right">
+      <div class="panel">
+        <div class="status" id="currentStatus">Giliran: Kamu (X)</div>
+
+        <div class="scoreboard" aria-live="polite">
+          <div class="score"><div>🧑 Kamu</div><div id="scorePlayer">0</div></div>
+          <div class="score"><div>🤖 Komputer</div><div id="scoreAI">0</div></div>
+          <div class="score"><div>⚖️ Seri</div><div id="scoreDraw">0</div></div>
+        </div>
+
+        <div>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+            <label class="small" for="difficulty">Kesulitan:</label>
+            <select id="difficulty" aria-label="Pilih tingkat kesulitan">
+              <option value="easy">Mudah</option>
+              <option value="normal" selected>Normal (heuristik)</option>
+              <option value="hard">Sulit (Minimax)</option>
+            </select>
+          </div>
+          <div class="small">Klik kotak untuk meletakkan X. Komputer memakai O.</div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="panel small">
+        <div style="font-weight:700;margin-bottom:8px">Pengaturan Audio</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label class="small">Volume</label>
+          <input id="vol" type="range" min="0" max="1" step="0.01" value="0.22" />
+        </div>
+        <div style="margin-top:8px" class="small">Suara klik saat memilih kotak dan efek kemenangan otomatis.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================
+   Game logic + UI + Audio
+   ============================ */
+
+(() => {
+  // --- State ---
+  const PLAYER = 'X';
+  const AI = 'O';
+  let board = Array(9).fill(null);
+  let currentTurn = PLAYER; // PLAYER starts
+  let gameOver = false;
+  let scores = {player:0, ai:0, draw:0};
+  let difficulty = 'normal'; // easy, normal, hard
+  let audioOn = true;
+  let volume = 0.22;
+
+  // DOM references
+  const boardEl = document.getElementById('board');
+  const currentStatusEl = document.getElementById('currentStatus');
+  const resultBox = document.getElementById('resultBox');
+  const resultText = document.getElementById('resultText');
+  const subText = document.getElementById('subText');
+  const overlay = document.getElementById('overlay');
+  const scorePlayerEl = document.getElementById('scorePlayer');
+  const scoreAIE = document.getElementById('scoreAI');
+  const scoreDrawEl = document.getElementById('scoreDraw');
+  const restartBtn = document.getElementById('restartBtn');
+  const overlayPlayAgain = document.getElementById('overlayPlayAgain');
+  const audioToggle = document.getElementById('audioToggle');
+  const volSlider = document.getElementById('vol');
+  const difficultySel = document.getElementById('difficulty');
+  const winLine = document.getElementById('winLine');
+  const confCanvas = document.getElementById('confettiCanvas');
+  const confCtx = confCanvas.getContext && confCanvas.getContext('2d');
+
+  // Audio setup using WebAudio API (no external files)
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = AudioContext ? new AudioContext() : null;
+
+  function setVolume(v){
+    volume = v;
+  }
+
+  // Simple click sound
+  function playClick(){
+    if(!audioOn || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(900, t);
+    g.gain.setValueAtTime(volume * 0.06, t);
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    o.start(t);
+    o.frequency.exponentialRampToValueAtTime(1200, t + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.stop(t + 0.14);
+  }
+
+  // victory 'chime' effect
+  function playVictory(){
+    if(!audioOn || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const freqs = [520, 660, 880];
+    let now = t;
+    freqs.forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, now);
+      g.gain.setValueAtTime(volume * 0.08, now);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      o.stop(now + 0.18);
+      now += 0.08;
+    });
+  }
+
+  // background ambient music (soft oscillator + noise) loop
+  let bgGain, noiseNode, bgOsc1, bgOsc2, bgRunning=false;
+  function startBackground(){
+    if(!audioCtx || bgRunning || !audioOn) return;
+    bgRunning = true;
+    const t = audioCtx.currentTime;
+    bgOsc1 = audioCtx.createOscillator();
+    bgOsc2 = audioCtx.createOscillator();
+    bgGain = audioCtx.createGain();
+    bgOsc1.type = 'sine'; bgOsc2.type = 'sine';
+    bgOsc1.frequency.value = 110;
+    bgOsc2.frequency.value = 220;
+    bgGain.gain.value = volume * 0.02;
+    bgOsc1.connect(bgGain); bgOsc2.connect(bgGain);
+    bgGain.connect(audioCtx.destination);
+    bgOsc1.start(t);
+    bgOsc2.start(t);
+    // subtle modulation
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.value = 0.07;
+    lfoGain.gain.value = 6;
+    lfo.connect(lfoGain);
+    lfoGain.connect(bgOsc1.frequency);
+    lfo.start(t);
+  }
+  function stopBackground(){
+    if(!audioCtx || !bgRunning) return;
+    bgRunning=false;
+    try{
+      bgOsc1.stop(); bgOsc2.stop();
+    }catch(e){}
+  }
+
+  // ensure canvas sizing
+  function resizeCanvas(){
+    if(!confCtx) return;
+    confCanvas.width = confCanvas.clientWidth * devicePixelRatio;
+    confCanvas.height = confCanvas.clientHeight * devicePixelRatio;
+    confCtx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // --- UI setup: create 9 cells ---
+  function createBoardUI(){
+    boardEl.innerHTML = '';
+    for(let i=0;i<9;i++){
+      const cell = document.createElement('button');
+      cell.className = 'cell';
+      cell.setAttribute('role','gridcell');
+      cell.setAttribute('aria-label', 'Kotak ' + (i+1));
+      cell.dataset.index = i;
+      cell.tabIndex = 0;
+      // mark container
+      const mark = document.createElement('div');
+      mark.className = 'mark';
+      mark.innerText = ''; // filled later (X or O)
+      cell.appendChild(mark);
+      cell.addEventListener('click', onCellClick);
+      cell.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          cell.click();
+        }
+      });
+      boardEl.appendChild(cell);
+    }
+  }
+
+  // update board UI from board array
+  function renderBoard(){
+    for(let i=0;i<9;i++){
+      const el = boardEl.children[i];
+      const mark = el.querySelector('.mark');
+      el.classList.remove('x','o','occupied');
+      el.removeAttribute('aria-disabled');
+      mark.textContent = '';
+      if(board[i]){
+        el.classList.add('occupied', board[i] === 'X' ? 'x' : 'o');
+        mark.textContent = board[i];
+      }
+    }
+  }
+
+  // helper: available moves
+  function availableMoves(b){
+    return b.map((v,i)=>v===null?i:null).filter(v=>v!==null);
+  }
+
+  // check winner util
+  const winLines = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+  function checkWinner(b){
+    for(const line of winLines){
+      const [a,b1,c] = line;
+      if(b[a] && b[a] === b[b1] && b[a] === b[c]){
+        return {winner: b[a], line};
+      }
+    }
+    if(b.every(Boolean)) return {winner: 'draw'};
+    return null;
+  }
+
+  // animate winning line
+  function showWinLine(line){
+    if(!line || line.length !== 3) return;
+    // compute centers of cells
+    const rects = Array.from(boardEl.children).map(c => c.getBoundingClientRect());
+    const p0 = rects[line[0]];
+    const p2 = rects[line[2]];
+    const boardRect = boardEl.getBoundingClientRect();
+    // center positions relative to boardEl
+    const x0 = (p0.left + p0.right)/2 - boardRect.left;
+    const y0 = (p0.top + p0.bottom)/2 - boardRect.top;
+    const x2 = (p2.left + p2.right)/2 - boardRect.left;
+    const y2 = (p2.top + p2.bottom)/2 - boardRect.top;
+    const dx = x2 - x0;
+    const dy = y2 - y0;
+    const length = Math.hypot(dx,dy);
+    const angle = Math.atan2(dy,dx) * 180 / Math.PI;
+    winLine.style.width = length + 'px';
+    winLine.style.height = Math.max(6, Math.min(14, boardRect.width * 0.02)) + 'px';
+    winLine.style.left = (x0 + x2)/2 - length/2 + 'px';
+    winLine.style.top = (y0 + y2)/2 - (parseFloat(getComputedStyle(winLine).height)/2) + 'px';
+    winLine.style.transform = 'rotate(' + angle + 'deg)';
+    winLine.style.opacity = '1';
+    setTimeout(()=> winLine.style.opacity = '0', 3000);
+  }
+
+  // confetti particles for win
+  const particles = [];
+  function emitConfetti(centerX, centerY, color){
+    if(!confCtx) return;
+    const count = 36;
+    for(let i=0;i<count;i++){
+      particles.push({
+        x:centerX + (Math.random()-0.5)*40,
+        y:centerY + (Math.random()-0.5)*40,
+        vx: (Math.random()-0.5)*6,
+        vy: Math.random()*-6 - 2,
+        size: Math.random()*6 + 4,
+        rot: Math.random()*360,
+        vr: (Math.random()-0.5)*12,
+        color: color || (Math.random()>0.5?'#00d1ff':'#9b4dff'),
+        life: Math.random()*0.9 + 0.8
+      });
+    }
+    animateConfetti();
+  }
+  let confAnimating = false;
+  function animateConfetti(){
+    if(!confCtx || confAnimating) return;
+    confAnimating = true;
+    resizeCanvas();
+    const w = confCanvas.clientWidth;
+    const h = confCanvas.clientHeight;
+    const loop = () => {
+      confCtx.clearRect(0,0,confCanvas.width, confCanvas.height);
+      if(particles.length === 0){
+        confAnimating = false;
+        return;
+      }
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.vy += 0.16; // gravity
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.99;
+        p.vy *= 0.998;
+        p.rot += p.vr;
+        p.life -= 0.02;
+        confCtx.save();
+        confCtx.translate(p.x, p.y);
+        confCtx.rotate(p.rot * Math.PI / 180);
+        confCtx.fillStyle = p.color;
+        confCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+        confCtx.restore();
+        if(p.y > h + 60 || p.life <= 0) particles.splice(i,1);
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  // --- Minimax AI (for 'hard') and heuristics ---
+  function bestMoveHard(b){
+    // minimax returns index and score
+    const maximizer = AI;
+    const minimizer = PLAYER;
+    function minimax(boardState, depth, isMax){
+      const res = checkWinner(boardState);
+      if(res){
+        if(res.winner === AI) return {score: 10 - depth};
+        if(res.winner === PLAYER) return {score: depth - 10};
+        if(res.winner === 'draw') return {score: 0};
+      }
+      const moves = availableMoves(boardState);
+      if(isMax){
+        let best = {score: -Infinity, idx: -1};
+        for(const m of moves){
+          boardState[m] = AI;
+          const val = minimax(boardState, depth+1, false);
+          boardState[m] = null;
+          if(val.score > best.score){
+            best = {score: val.score, idx: m};
+          }
+        }
+        return best;
+      } else {
+        let best = {score: Infinity, idx: -1};
+        for(const m of moves){
+          boardState[m] = PLAYER;
+          const val = minimax(boardState, depth+1, true);
+          boardState[m] = null;
+          if(val.score < best.score){
+            best = {score: val.score, idx: m};
+          }
+        }
+        return best;
+      }
+    }
+    return minimax(board, 0, true).idx;
+  }
+
+  // normal: simple heuristics
+  function bestMoveNormal(){
+    // 1) win if possible
+    for(let i of availableMoves(board)){
+      board[i] = AI;
+      if(checkWinner(board) && checkWinner(board).winner === AI){
+        board[i] = null;
+        return i;
+      }
+      board[i] = null;
+    }
+    // 2) block opponent winning move
+    for(let i of availableMoves(board)){
+      board[i] = PLAYER;
+      if(checkWinner(board) && checkWinner(board).winner === PLAYER){
+        board[i] = null;
+        return i;
+      }
+      board[i] = null;
+    }
+    // 3) take center if free
+    if(board[4] === null) return 4;
+    // 4) take a corner
+    const corners = [0,2,6,8].filter(i=>board[i]===null);
+    if(corners.length) return corners[Math.floor(Math.random()*corners.length)];
+    // 5) else random side
+    const sides = [1,3,5,7].filter(i=>board[i]===null);
+    if(sides.length) return sides[Math.floor(Math.random()*sides.length)];
+    // fallback
+    return availableMoves(board)[0];
+  }
+
+  // easy: random move
+  function bestMoveEasy(){
+    const moves = availableMoves(board);
+    return moves[Math.floor(Math.random()*moves.length)];
+  }
+
+  function aiChooseMove(){
+    if(gameOver) return null;
+    if(difficulty === 'easy') return bestMoveEasy();
+    if(difficulty === 'normal') return bestMoveNormal();
+    return bestMoveHard();
+  }
+
+  // --- Game flow handlers ---
+  function onCellClick(e){
+    const idx = Number(e.currentTarget.dataset.index);
+    if(gameOver) return;
+    if(board[idx]) return;
+    // player move
+    board[idx] = PLAYER;
+    renderBoard();
+    playClick();
+    const check = checkWinner(board);
+    if(check){
+      endGame(check);
+      return;
+    }
+    currentTurn = AI;
+    updateStatus();
+    // small delay for AI move to feel natural
+    setTimeout(() => {
+      doAIMove();
+    }, 250);
+  }
+
+  function doAIMove(){
+    if(gameOver) return;
+    const move = aiChooseMove();
+    if(move === undefined || move === null) return;
+    board[move] = AI;
+    renderBoard();
+    playClick();
+    const check = checkWinner(board);
+    if(check){
+      endGame(check);
+      return;
+    }
+    currentTurn = PLAYER;
+    updateStatus();
+  }
+
+  function updateStatus(){
+    if(gameOver) return;
+    currentStatusEl.textContent = `Giliran: ${currentTurn === PLAYER ? 'Kamu (X)' : 'Komputer (O)'}`;
+  }
+
+  function endGame(result){
+    gameOver = true;
+    overlay.setAttribute('aria-hidden','false');
+    // check result structure
+    if(result.winner === PLAYER){
+      resultText.textContent = 'Kamu Menang!';
+      subText.textContent = 'Selamat! 🎉';
+      scores.player++;
+      playVictory();
+      launchWinEffects(result.line, 'player');
+    } else if(result.winner === AI){
+      resultText.textContent = 'Komputer Menang!';
+      subText.textContent = 'Coba lagi ya.';
+      scores.ai++;
+      playVictory();
+      launchWinEffects(result.line, 'ai');
+    } else if(result.winner === 'draw'){
+      resultText.textContent = 'Seri!';
+      subText.textContent = 'Permainan berakhir seri.';
+      scores.draw++;
+      launchDrawEffects();
+    }
+    // update scoreboard
+    scorePlayerEl.textContent = scores.player;
+    scoreAIE.textContent = scores.ai;
+    scoreDrawEl.textContent = scores.draw;
+
+    // show result overlay
+    resultBox.classList.add('show');
+    // hide overlay after some time? no — require user click main lagi
+  }
+
+  function launchWinEffects(line, who){
+    // show winning line
+    showWinLine(line);
+    // highlight winning cells a bit
+    for(const i of line){
+      const el = boardEl.children[i];
+      el.style.boxShadow = '0 0 30px rgba(0,0,0,0.6), 0 0 26px rgba(155,77,255,0.12)';
+      el.classList.add('draw-flash');
+    }
+    // confetti from center
+    const boardRect = boardEl.getBoundingClientRect();
+    const cx = boardRect.width/2;
+    const cy = boardRect.height/2;
+    emitConfetti(cx, cy, who === 'player' ? '#00d1ff' : '#9b4dff');
+    // sounds are handled earlier
+  }
+
+  function launchDrawEffects(){
+    // subtle flash of all cells
+    for(const el of boardEl.children){
+      el.classList.add('draw-flash');
+    }
+  }
+
+  // reset game (not scores)
+  function resetBoard(){
+    board = Array(9).fill(null);
+    gameOver = false;
+    currentTurn = PLAYER;
+    renderBoard();
+    updateStatus();
+    resultBox.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+    winLine.style.opacity = '0';
+    // remove flash classes after short time
+    setTimeout(()=> {
+      for(const el of boardEl.children){
+        el.classList.remove('draw-flash');
+        el.style.boxShadow = '';
+      }
+    }, 500);
+  }
+
+  // full reset scores?
+  function hardReset(){
+    scores = {player:0, ai:0, draw:0};
+    scorePlayerEl.textContent = 0;
+    scoreAIE.textContent = 0;
+    scoreDrawEl.textContent = 0;
+    resetBoard();
+  }
+
+  // --- UI interactions registration ---
+  restartBtn.addEventListener('click', () => {
+    resetBoard();
+  });
+  overlayPlayAgain.addEventListener('click', () => {
+    resetBoard();
+  });
+  difficultySel.addEventListener('change', (e) => {
+    difficulty = e.target.value;
+  });
+  audioToggle.addEventListener('click', async () => {
+    audioOn = !audioOn;
+    audioToggle.textContent = audioOn ? '🔊' : '🔇';
+    audioToggle.setAttribute('aria-pressed', String(audioOn));
+    if(audioOn){
+      // resume audio context if suspended (user gesture)
+      try { if(audioCtx && audioCtx.state === 'suspended') await audioCtx.resume(); } catch(e){}
+      startBackground();
+    } else {
+      stopBackground();
+    }
+  });
+  volSlider.addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    setVolume(v);
+    if(bgGain) bgGain.gain.value = v * 0.02;
+  });
+
+  // start background on first user gesture (autoplay blocked in many browsers)
+  function initAutoAudioStart(){
+    document.addEventListener('click', function once(){
+      if(!audioCtx) return;
+      if(audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(()=>{});
+      }
+      if(audioOn) startBackground();
+      document.removeEventListener('click', once);
+    });
+  }
+
+  // initialization
+  createBoardUI();
+  renderBoard();
+  updateStatus();
+  initAutoAudioStart();
+  resizeCanvas();
+
+  // enable keyboard for accessibility - allow 'r' to restart
+  document.addEventListener('keydown', (e) => {
+    if(e.key.toLowerCase() === 'r') resetBoard();
+  });
+
+  // attempt to keep overlay result centered on resize
+  window.addEventListener('resize', () => {
+    // re-render win line if necessary
+    resizeCanvas();
+  });
+
+  // expose some debug on window (optional)
+  window.__ttt = {
+    state: () => ({board, currentTurn, gameOver, scores, difficulty, audioOn}),
+    reset: resetBoard,
+    newGame: hardReset
+  };
+
+})();
+</script>
+</body>
+</html>
